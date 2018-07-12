@@ -15,6 +15,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var paddle = SKSpriteNode()
     var bricks = [SKSpriteNode]()
     var loseZone = SKSpriteNode()
+    var scoreLabel : SKLabelNode!
     
     let defaults = UserDefaults.standard
     var scores = [0,0]
@@ -32,6 +33,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 scores = decoded
             }
         }
+        createScoreLabel()
     }
     
     func start() {
@@ -44,7 +46,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         makeBall()
         ball.physicsBody?.isDynamic = true
         
-        ball.physicsBody?.applyImpulse(CGVector(dx: 3, dy: 5))
+        ball.physicsBody?.applyImpulse(CGVector(dx: 5, dy: 3))
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -59,6 +61,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let location = touch.location(in: self)
             paddle.position.x = location.x
         }
+    }
+    
+    func createScoreLabel() {
+        scoreLabel = SKLabelNode(text: "Wins: \(scores[0]) | Losses: \(scores[1])")
+        scoreLabel.position = CGPoint(x: frame.midX, y: -frame.maxY+20)
+        scoreLabel.fontColor = .black
+        scoreLabel.fontSize = 22
+        addChild(scoreLabel)
     }
     
     func createBackground() {
@@ -122,12 +132,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func makeLoseZone() {
-        loseZone = SKSpriteNode(color: UIColor.black, size: CGSize(width: frame.width, height: 50))
+        loseZone = SKSpriteNode(color: UIColor.clear, size: CGSize(width: frame.width, height: 50))
         loseZone.position = CGPoint(x: frame.midX, y: frame.minY + 25)
         loseZone.name = "loseZone"
         loseZone.physicsBody = SKPhysicsBody(rectangleOf: loseZone.size)
         loseZone.physicsBody?.isDynamic = false
-        addChild(loseZone)
+        insertChild(loseZone, at: 0)
     }
     
     func didBegin(_ contact: SKPhysicsContact) {
@@ -165,11 +175,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         paddle.removeFromParent()
         displayEndingMessage(message)
         scores[scoreIndex] += 1
-        saveData()
+        saveAndUpdateData()
     }
     
     func displayEndingMessage(_ str: String) {
-        let alert = UIAlertController(title: str, message: "", preferredStyle: .alert)
+        let alert = UIAlertController(title: str, message: "Wins: \(scores[0]) | Losses: \(scores[1])", preferredStyle: .alert)
         
         let restart = UIAlertAction(title: "Play Again", style: .default) { (void) in
             self.start()
@@ -184,7 +194,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.view?.window?.rootViewController?.present(alert, animated: true, completion: nil)
     }
     
-    func saveData() {
+    func saveAndUpdateData() {
+        scoreLabel.text = "Wins: \(scores[0]) | Losses: \(scores[1])"
         if let encoded = try? JSONEncoder().encode(scores) {
             defaults.set(encoded, forKey: "scoreArr")
         }
