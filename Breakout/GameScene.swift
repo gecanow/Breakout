@@ -13,20 +13,37 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var ball = SKShapeNode()
     var paddle = SKSpriteNode()
-    var brick = SKSpriteNode()
+    var bricks = [SKSpriteNode]()
     var loseZone = SKSpriteNode()
+    
+    let defaults = UserDefaults.standard
+    var scores = [0,0]
     
     override func didMove(to view: SKView) {
         createBackground()
-        makeBall()
-        makePaddle()
-        makeBrick()
         makeLoseZone()
+        start()
         
         physicsWorld.contactDelegate = self
         self.physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
         
+        if let savedData = defaults.object(forKey: "scoreArr") as? Data {
+            if let decoded = try? JSONDecoder().decode([Int].self, from: savedData) {
+                scores = decoded
+            }
+        }
+    }
+    
+    func start() {
+        for y in stride(from: frame.maxY - 30, to: frame.maxY - 150, by: -30) {
+            for x in stride(from: -frame.maxX + 30, to: frame.width - 30, by: 70) {
+                makeBrick(xCord: Int(x), yCord: Int(y))
+            }
+        }
+        makePaddle()
+        makeBall()
         ball.physicsBody?.isDynamic = true
+        
         ball.physicsBody?.applyImpulse(CGVector(dx: 3, dy: 5))
     }
     
@@ -63,7 +80,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ball = SKShapeNode(circleOfRadius: 10)
         ball.position = CGPoint(x: frame.midX, y: frame.midY)
         ball.strokeColor = UIColor.black
-        ball.fillColor = UIColor.yellow
+        ball.fillColor = UIColor.blue
         ball.name = "ball"
         
         // physics shape matches ball image
@@ -94,17 +111,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(paddle)
     }
 
-    func makeBrick() {
-        brick = SKSpriteNode(color: UIColor.blue, size: CGSize(width: 50, height: 20))
-        brick.position = CGPoint(x: frame.midX, y: frame.maxY - 30)
+    func makeBrick(xCord: Int, yCord: Int) {
+        let brick = SKSpriteNode(color: UIColor.red, size: CGSize(width: 50, height: 20))
+        brick.position = CGPoint(x: xCord, y: yCord)
         brick.name = "brick"
         brick.physicsBody = SKPhysicsBody(rectangleOf: brick.size)
         brick.physicsBody?.isDynamic = false
+        bricks.append(brick)
         addChild(brick)
     }
     
     func makeLoseZone() {
-        loseZone = SKSpriteNode(color: UIColor.red, size: CGSize(width: frame.width, height: 50))
+        loseZone = SKSpriteNode(color: UIColor.black, size: CGSize(width: frame.width, height: 50))
         loseZone.position = CGPoint(x: frame.midX, y: frame.minY + 25)
         loseZone.name = "loseZone"
         loseZone.physicsBody = SKPhysicsBody(rectangleOf: loseZone.size)
@@ -113,16 +131,62 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func didBegin(_ contact: SKPhysicsContact) {
-        if contact.bodyA.node?.name == "brick" ||
-            contact.bodyB.node?.name == "brick" {
-            print("You win!")
-            brick.removeFromParent()
-            ball.removeFromParent()
+        var maybeBrick : SKSpriteNode?
+        if contact.bodyA.node?.name == "brick" {
+            maybeBrick = contact.bodyA.node as? SKSpriteNode
+        } else if contact.bodyB.node?.name == "brick" {
+            maybeBrick = contact.bodyB.node as? SKSpriteNode
+        } else {}
+        
+        if maybeBrick != nil {
+            if maybeBrick?.color == .red {
+                maybeBrick?.color = .orange
+            } else if maybeBrick?.color == .orange {
+                maybeBrick?.color = .yellow
+            } else if maybeBrick?.color == .yellow {
+                maybeBrick?.color = .white
+            } else {
+                bricks.remove(at: bricks.index(of: maybeBrick!)!)
+                maybeBrick?.removeFromParent()
+                
+                if bricks.isEmpty {
+                    endGame(scoreIndex: 0, message: "You Win!")
+                }
+            }
         }
         if contact.bodyA.node?.name == "loseZone" ||
             contact.bodyB.node?.name == "loseZone" {
-            print("You lose!")
-            ball.removeFromParent()
+            endGame(scoreIndex: 1, message: "You Lose.")
+        }
+    }
+    
+    func endGame(scoreIndex: Int, message: String) {
+        ball.removeFromParent()
+        paddle.removeFromParent()
+        displayEndingMessage(message)
+        scores[scoreIndex] += 1
+        saveData()
+    }
+    
+    func displayEndingMessage(_ str: String) {
+        let alert = UIAlertController(title: str, message: "", preferredStyle: .alert)
+        
+        let restart = UIAlertAction(title: "Play Again", style: .default) { (void) in
+            self.start()
+        }
+        alert.addAction(restart)
+        
+        let quit = UIAlertAction(title: "Quit", style: .cancel) { (void) in
+            exit(0)
+        }
+        alert.addAction(quit)
+        
+        self.view?.window?.rootViewController?.present(alert, animated: true, completion: nil)
+    }
+    
+    func saveData() {
+        if let encoded = try? JSONEncoder().encode(scores) {
+            defaults.set(encoded, forKey: "scoreArr")
         }
     }
 }
