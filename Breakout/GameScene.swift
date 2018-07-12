@@ -9,7 +9,7 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var ball = SKShapeNode()
     var paddle = SKSpriteNode()
@@ -22,6 +22,12 @@ class GameScene: SKScene {
         makePaddle()
         makeBrick()
         makeLoseZone()
+        
+        physicsWorld.contactDelegate = self
+        self.physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+        
+        ball.physicsBody?.isDynamic = true
+        ball.physicsBody?.applyImpulse(CGVector(dx: 3, dy: 5))
     }
     
     func createBackground() {
